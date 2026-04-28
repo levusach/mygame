@@ -1,7 +1,7 @@
 bool isBreakable(char tile) {
-    return tile == '0' || tile == 'i' || tile == 'T' || tile == ':' || tile == 'w' || tile == 'W' ||
+    return tile == '0' || tile == 'i' || tile == 'T' || tile == 't' || tile == ':' || tile == 'w' || tile == 'W' ||
            tile == '#' || tile == 'F' || tile == 'D' || tile == 'd' || tile == 'C' || tile == 'f' ||
-           tile == 'B' || tile == 'M';
+           tile == 'B' || tile == 'M' || tile == 'P';
 }
 
 int damageAt(const Position& position) {
@@ -16,7 +16,7 @@ const char* itemName(ItemType item) {
     if (item == ItemType::Stone)
         return "Stone";
     if (item == ItemType::Wood)
-        return "Wood";
+        return "Old Planks";
     if (item == ItemType::RawMeat)
         return "Raw Meat";
     if (item == ItemType::CookedMeat)
@@ -75,6 +75,12 @@ const char* itemName(ItemType item) {
         return "Wool";
     if (item == ItemType::Bed)
         return "Bed";
+    if (item == ItemType::Log)
+        return "Log";
+    if (item == ItemType::Planks)
+        return "Planks";
+    if (item == ItemType::Sapling)
+        return "Sapling";
     return "Empty";
 }
 
@@ -82,7 +88,7 @@ const char* itemShortName(ItemType item) {
     if (item == ItemType::Stone)
         return "Stone";
     if (item == ItemType::Wood)
-        return "Wood";
+        return "Plank";
     if (item == ItemType::RawMeat)
         return "Raw";
     if (item == ItemType::CookedMeat)
@@ -141,6 +147,12 @@ const char* itemShortName(ItemType item) {
         return "Wool";
     if (item == ItemType::Bed)
         return "Bed";
+    if (item == ItemType::Log)
+        return "Log";
+    if (item == ItemType::Planks)
+        return "Plank";
+    if (item == ItemType::Sapling)
+        return "Sap";
     return "Empty";
 }
 
@@ -150,6 +162,12 @@ const wchar_t* itemIcon(ItemType item) {
             return L"O";
         if (item == ItemType::Wood)
             return L"W";
+        if (item == ItemType::Log)
+            return L"L";
+        if (item == ItemType::Planks)
+            return L"P";
+        if (item == ItemType::Sapling)
+            return L"y";
         if (item == ItemType::RawMeat)
             return L"r";
         if (item == ItemType::CookedMeat)
@@ -203,6 +221,12 @@ const wchar_t* itemIcon(ItemType item) {
         return L"●";
     if (item == ItemType::Wood)
         return L"♣";
+    if (item == ItemType::Log)
+        return L"L";
+    if (item == ItemType::Planks)
+        return L"P";
+    if (item == ItemType::Sapling)
+        return L"y";
     if (item == ItemType::RawMeat)
         return L"m";
     if (item == ItemType::CookedMeat)
@@ -258,7 +282,11 @@ ItemType itemFromPlacedTile(char tile) {
     if (tile == 'i')
         return ItemType::IronOre;
     if (tile == 'T')
-        return ItemType::Wood;
+        return ItemType::Log;
+    if (tile == 't')
+        return ItemType::Sapling;
+    if (tile == 'P')
+        return ItemType::Planks;
     if (tile == '#')
         return ItemType::Workbench;
     if (tile == 'F')
@@ -283,8 +311,10 @@ ItemType itemFromPlacedTile(char tile) {
 char tileFromItem(ItemType item) {
     if (item == ItemType::Stone)
         return '0';
-    if (item == ItemType::Wood)
-        return 'T';
+    if (item == ItemType::Planks || item == ItemType::Wood)
+        return 'P';
+    if (item == ItemType::Sapling)
+        return 't';
     if (item == ItemType::Workbench)
         return '#';
     if (item == ItemType::Furnace)
@@ -365,6 +395,27 @@ bool removeItem(Inventory& inventory, ItemType item, int amount = 1) {
 }
 
 void dropBrokenTile(const Position& position, char tile) {
+    if (tile == 'T') {
+        Slot& logs = droppedItems[position];
+        if (logs.item == ItemType::None || logs.count <= 0)
+            logs = {ItemType::Log, 1};
+        else if (logs.item == ItemType::Log)
+            logs.count++;
+
+        uint64_t roll = mix(static_cast<uint64_t>(position.x) * 0x9e3779b97f4a7c15ULL ^
+                            static_cast<uint64_t>(position.y) * 0xbf58476d1ce4e5b9ULL ^
+                            worldSeed);
+        if (roll % 3 != 0) {
+            Position saplingPos{position.x + 1, position.y};
+            Slot& sapling = droppedItems[saplingPos];
+            if (sapling.item == ItemType::None || sapling.count <= 0)
+                sapling = {ItemType::Sapling, 1};
+            else if (sapling.item == ItemType::Sapling)
+                sapling.count++;
+        }
+        return;
+    }
+
     ItemType item = itemFromPlacedTile(tile);
     if (tile == '0' && isIronOreAt(position.x, position.y))
         item = ItemType::IronOre;
@@ -430,9 +481,9 @@ bool isShovel(ItemType item) {
 bool canInstantBreak(char tile, ItemType tool) {
     if (tile == '0' || tile == 'i' || tile == '#' || tile == 'F')
         return isPickaxe(tool);
-    if (tile == 'T' || tile == 'D' || tile == 'd' || tile == 'C' || tile == 'f' || tile == 'B' || tile == 'M')
+    if (tile == 'T' || tile == 'P' || tile == 'D' || tile == 'd' || tile == 'C' || tile == 'f' || tile == 'B' || tile == 'M')
         return isAxe(tool);
-    if (tile == ':')
+    if (tile == ':' || tile == 't')
         return isShovel(tool);
     return tile == 'w';
 }

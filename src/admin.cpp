@@ -5,7 +5,7 @@ void addChatMessage(ChatState& chat, const std::string& message) {
 }
 
 bool adminIsAllowedTile(char tile) {
-    return tile == '.' || tile == '0' || tile == 'i' || tile == 'T' || tile == '~' || tile == ':' ||
+    return tile == '.' || tile == '0' || tile == 'i' || tile == 'T' || tile == 't' || tile == 'P' || tile == '~' || tile == ':' ||
            tile == 'w' || tile == '#' || tile == 'F' || tile == 'D' || tile == 'd' ||
            tile == 'C' || tile == 'f' || tile == 'B' || tile == 'M';
 }
@@ -62,13 +62,12 @@ void chatHelp(ChatState& chat) {
 }
 
 void chatItems(ChatState& chat) {
-    addChatMessage(chat, "1 Stone, 2 Wood, 3 Raw Meat, 4 Cooked Meat, 8 Workbench, 9 Furnace, 10 Door, 11 Chest");
-    addChatMessage(chat, "12 Spear, 13 Sand, 14 Wheat, 15 Seeds, 16 Fence, 17 Ore, 18 Ingot, 30 Bread");
-    addChatMessage(chat, "21-23 Pickaxes, 24-26 Axes, 27-29 Shovels, 31 Shears, 32 Wool, 33 Bed");
+    addChatMessage(chat, "1 Stone, 2 OldPlanks, 12 Spear, 14 Wheat, 15 Seeds, 16 Fence, 17 Ore, 18 Ingot");
+    addChatMessage(chat, "30 Bread, 31 Shears, 32 Wool, 33 Bed, 34 Log, 35 Planks, 36 Sapling");
 }
 
 void chatBlocks(ChatState& chat) {
-    addChatMessage(chat, "Blocks: . empty, 0 stone, i ore, T tree, ~ water, : sand, w wheat, # bench, F furnace, D/d door, C chest, f fence, B bed, M bag");
+    addChatMessage(chat, "Blocks: . empty, 0 stone, i ore, T tree, t sapling, P planks, ~ water, : sand, w wheat, # bench, F furnace, D/d door, C chest, f fence, B bed, M bag");
 }
 
 bool parsePoint(std::istringstream& in, const Position& player, Position& point) {
@@ -122,7 +121,7 @@ void executeHostCommand(const std::string& line, ChatState& chat, Position& play
             return;
         }
         in >> amount;
-        if (item <= static_cast<int>(ItemType::None) || item > static_cast<int>(ItemType::Bed) || amount <= 0) {
+        if (item <= static_cast<int>(ItemType::None) || item > static_cast<int>(ItemType::Sapling) || amount <= 0) {
             addChatMessage(chat, "Bad item id or amount.");
             return;
         }

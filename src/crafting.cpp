@@ -105,7 +105,8 @@ bool placeSelectedBlock(const Position& player, const LookDirection& look, Inven
         return false;
 
     char targetTile = tileAt(target.x, target.y);
-    if (target == player || (slot.item == ItemType::Wheat ? !isPlantableTile(targetTile) : targetTile != '.'))
+    bool plant = slot.item == ItemType::WheatSeeds || slot.item == ItemType::Sapling;
+    if (target == player || (plant ? !isPlantableTile(targetTile) : targetTile != '.'))
         return false;
 
     placedBlocks[target] = tile;
@@ -163,8 +164,33 @@ bool toggleNearbyDoor(const Position& player, const LookDirection& look) {
     return false;
 }
 
+int countPlanks(const Inventory& inventory) {
+    return countItem(inventory, ItemType::Planks) + countItem(inventory, ItemType::Wood);
+}
+
+bool removePlanks(Inventory& inventory, int amount) {
+    if (countPlanks(inventory) < amount)
+        return false;
+
+    int fromPlanks = std::min(countItem(inventory, ItemType::Planks), amount);
+    if (fromPlanks > 0) {
+        removeItem(inventory, ItemType::Planks, fromPlanks);
+        amount -= fromPlanks;
+    }
+    if (amount > 0)
+        removeItem(inventory, ItemType::Wood, amount);
+    return true;
+}
+
+bool craftPlanks(Inventory& inventory) {
+    if (!removeItem(inventory, ItemType::Log, 1))
+        return false;
+    addItem(inventory, ItemType::Planks, 4);
+    return true;
+}
+
 bool craftWorkbench(Inventory& inventory) {
-    if (!removeItem(inventory, ItemType::Wood, 4))
+    if (!removePlanks(inventory, 4))
         return false;
     addItem(inventory, ItemType::Workbench);
     return true;
@@ -178,30 +204,30 @@ bool craftFurnace(Inventory& inventory) {
 }
 
 bool craftDoor(Inventory& inventory) {
-    if (!removeItem(inventory, ItemType::Wood, 3))
+    if (!removePlanks(inventory, 3))
         return false;
     addItem(inventory, ItemType::Door);
     return true;
 }
 
 bool craftChest(Inventory& inventory) {
-    if (!removeItem(inventory, ItemType::Wood, 8))
+    if (!removePlanks(inventory, 8))
         return false;
     addItem(inventory, ItemType::Chest);
     return true;
 }
 
 bool craftSpear(Inventory& inventory) {
-    if (countItem(inventory, ItemType::Wood) < 1 || countItem(inventory, ItemType::Stone) < 1)
+    if (countPlanks(inventory) < 1 || countItem(inventory, ItemType::Stone) < 1)
         return false;
-    removeItem(inventory, ItemType::Wood, 1);
+    removePlanks(inventory, 1);
     removeItem(inventory, ItemType::Stone, 1);
     addItem(inventory, ItemType::Spear);
     return true;
 }
 
 bool craftFence(Inventory& inventory) {
-    if (!removeItem(inventory, ItemType::Wood, 2))
+    if (!removePlanks(inventory, 2))
         return false;
     addItem(inventory, ItemType::Fence, 4);
     return true;
@@ -215,18 +241,18 @@ bool craftShears(Inventory& inventory) {
 }
 
 bool craftBed(Inventory& inventory) {
-    if (countItem(inventory, ItemType::Wood) < 3 || countItem(inventory, ItemType::Wool) < 3)
+    if (countPlanks(inventory) < 3 || countItem(inventory, ItemType::Wool) < 3)
         return false;
-    removeItem(inventory, ItemType::Wood, 3);
+    removePlanks(inventory, 3);
     removeItem(inventory, ItemType::Wool, 3);
     addItem(inventory, ItemType::Bed);
     return true;
 }
 
 bool craftTool(Inventory& inventory, ItemType material, int materialCount, ItemType result) {
-    if (countItem(inventory, ItemType::Wood) < 1 || countItem(inventory, material) < materialCount)
+    if (countPlanks(inventory) < 1 || countItem(inventory, material) < materialCount)
         return false;
-    removeItem(inventory, ItemType::Wood, 1);
+    removePlanks(inventory, 1);
     removeItem(inventory, material, materialCount);
     addItem(inventory, result);
     return true;
@@ -234,8 +260,10 @@ bool craftTool(Inventory& inventory, ItemType material, int materialCount, ItemT
 
 bool craftAtWorkbench(Inventory& inventory, const Position& player) {
     if (!isNearTile(player, '#'))
-        return craftWorkbench(inventory);
+        return craftPlanks(inventory) || craftWorkbench(inventory);
 
+    if (craftPlanks(inventory))
+        return true;
     if (craftFurnace(inventory))
         return true;
     if (craftDoor(inventory))
@@ -255,7 +283,7 @@ bool craftAtWorkbench(Inventory& inventory, const Position& player) {
 
 bool craftFromInventory(Inventory& inventory, const Position& player) {
     if (!isNearTile(player, '#'))
-        return craftWorkbench(inventory);
+        return craftPlanks(inventory) || craftWorkbench(inventory);
     return craftAtWorkbench(inventory, player);
 }
 
@@ -276,7 +304,9 @@ bool furnaceAccepts(ItemType item) {
 }
 
 int fuelTicks(ItemType item) {
-    if (item == ItemType::Wood)
+    if (item == ItemType::Log)
+        return tickRate * 9;
+    if (item == ItemType::Planks || item == ItemType::Wood)
         return tickRate * 6;
     if (item == ItemType::Door || item == ItemType::Workbench || item == ItemType::Chest || item == ItemType::Bed)
         return tickRate * 10;

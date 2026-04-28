@@ -224,7 +224,10 @@ enum class ItemType {
     Bread,
     Shears,
     Wool,
-    Bed
+    Bed,
+    Log,
+    Planks,
+    Sapling
 };
 
 struct Slot {
@@ -310,6 +313,7 @@ enum class ActionType {
     Eat,
     Drink,
     Place,
+    CraftPlanks,
     CraftWorkbench,
     CraftFurnace,
     CraftDoor,

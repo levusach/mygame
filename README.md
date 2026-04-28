@@ -129,7 +129,9 @@ make win-podvoh
 ## Ресурсы
 
 - Камень `0` даёт `Stone`.
-- Дерево `T` даёт `Wood`.
+- Дерево `T` даёт `Log` и иногда `Sapling`.
+- `Log` можно переделать в `Planks x4`.
+- `Sapling` можно посадить на землю или песок, позже он вырастет в дерево.
 - Корова `&` даёт `Raw Meat`.
 - У воды `~` можно набрать `Dirty Water`.
 
@@ -137,14 +139,15 @@ make win-podvoh
 
 Без верстака:
 
-- `Workbench`: 4 `Wood`.
+- `Planks x4`: 1 `Log`.
+- `Workbench`: 4 `Planks`.
 
 Рядом с верстаком:
 
 - `Furnace`: 8 `Stone`.
-- `Door`: 3 `Wood`.
-- `Chest`: 8 `Wood`.
-- `Spear`: 1 `Wood` + 1 `Stone`.
+- `Door`: 3 `Planks`.
+- `Chest`: 8 `Planks`.
+- `Spear`: 1 `Planks` + 1 `Stone`.
 
 Крафт делается в отдельном меню на `C`.
 

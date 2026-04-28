@@ -200,23 +200,24 @@ struct CraftRecipe {
 
 std::vector<CraftRecipe> allCraftRecipes() {
     return {
-        {ActionType::CraftWorkbench, "Workbench (4 wood)", false, {{ItemType::Wood, 4}}, ItemType::Workbench, 1},
+        {ActionType::CraftPlanks, "Planks x4 (1 log)", false, {{ItemType::Log, 1}}, ItemType::Planks, 4},
+        {ActionType::CraftWorkbench, "Workbench (4 planks)", false, {{ItemType::Planks, 4}}, ItemType::Workbench, 1},
         {ActionType::CraftFurnace, "Furnace (8 stone)", true, {{ItemType::Stone, 8}}, ItemType::Furnace, 1},
-        {ActionType::CraftDoor, "Door (3 wood)", true, {{ItemType::Wood, 3}}, ItemType::Door, 1},
-        {ActionType::CraftChest, "Chest (8 wood)", true, {{ItemType::Wood, 8}}, ItemType::Chest, 1},
-        {ActionType::CraftSpear, "Spear (wood + stone)", true, {{ItemType::Wood, 1}, {ItemType::Stone, 1}}, ItemType::Spear, 1},
-        {ActionType::CraftFence, "Fence x4 (2 wood)", true, {{ItemType::Wood, 2}}, ItemType::Fence, 4},
-        {ActionType::CraftWoodPickaxe, "Wood pickaxe (4 wood)", true, {{ItemType::Wood, 4}}, ItemType::WoodPickaxe, 1},
-        {ActionType::CraftStonePickaxe, "Stone pickaxe", true, {{ItemType::Wood, 1}, {ItemType::Stone, 3}}, ItemType::StonePickaxe, 1},
-        {ActionType::CraftIronPickaxe, "Iron pickaxe", true, {{ItemType::Wood, 1}, {ItemType::IronIngot, 3}}, ItemType::IronPickaxe, 1},
-        {ActionType::CraftWoodAxe, "Wood axe (4 wood)", true, {{ItemType::Wood, 4}}, ItemType::WoodAxe, 1},
-        {ActionType::CraftStoneAxe, "Stone axe", true, {{ItemType::Wood, 1}, {ItemType::Stone, 3}}, ItemType::StoneAxe, 1},
-        {ActionType::CraftIronAxe, "Iron axe", true, {{ItemType::Wood, 1}, {ItemType::IronIngot, 3}}, ItemType::IronAxe, 1},
-        {ActionType::CraftWoodShovel, "Wood shovel (3 wood)", true, {{ItemType::Wood, 3}}, ItemType::WoodShovel, 1},
-        {ActionType::CraftStoneShovel, "Stone shovel", true, {{ItemType::Wood, 1}, {ItemType::Stone, 2}}, ItemType::StoneShovel, 1},
-        {ActionType::CraftIronShovel, "Iron shovel", true, {{ItemType::Wood, 1}, {ItemType::IronIngot, 2}}, ItemType::IronShovel, 1},
+        {ActionType::CraftDoor, "Door (3 planks)", true, {{ItemType::Planks, 3}}, ItemType::Door, 1},
+        {ActionType::CraftChest, "Chest (8 planks)", true, {{ItemType::Planks, 8}}, ItemType::Chest, 1},
+        {ActionType::CraftSpear, "Spear (plank + stone)", true, {{ItemType::Planks, 1}, {ItemType::Stone, 1}}, ItemType::Spear, 1},
+        {ActionType::CraftFence, "Fence x4 (2 planks)", true, {{ItemType::Planks, 2}}, ItemType::Fence, 4},
+        {ActionType::CraftWoodPickaxe, "Wood pickaxe (4 planks)", true, {{ItemType::Planks, 4}}, ItemType::WoodPickaxe, 1},
+        {ActionType::CraftStonePickaxe, "Stone pickaxe", true, {{ItemType::Planks, 1}, {ItemType::Stone, 3}}, ItemType::StonePickaxe, 1},
+        {ActionType::CraftIronPickaxe, "Iron pickaxe", true, {{ItemType::Planks, 1}, {ItemType::IronIngot, 3}}, ItemType::IronPickaxe, 1},
+        {ActionType::CraftWoodAxe, "Wood axe (4 planks)", true, {{ItemType::Planks, 4}}, ItemType::WoodAxe, 1},
+        {ActionType::CraftStoneAxe, "Stone axe", true, {{ItemType::Planks, 1}, {ItemType::Stone, 3}}, ItemType::StoneAxe, 1},
+        {ActionType::CraftIronAxe, "Iron axe", true, {{ItemType::Planks, 1}, {ItemType::IronIngot, 3}}, ItemType::IronAxe, 1},
+        {ActionType::CraftWoodShovel, "Wood shovel (3 planks)", true, {{ItemType::Planks, 3}}, ItemType::WoodShovel, 1},
+        {ActionType::CraftStoneShovel, "Stone shovel", true, {{ItemType::Planks, 1}, {ItemType::Stone, 2}}, ItemType::StoneShovel, 1},
+        {ActionType::CraftIronShovel, "Iron shovel", true, {{ItemType::Planks, 1}, {ItemType::IronIngot, 2}}, ItemType::IronShovel, 1},
         {ActionType::CraftShears, "Shears (2 iron)", true, {{ItemType::IronIngot, 2}}, ItemType::Shears, 1},
-        {ActionType::CraftBed, "Bed (3 wool + 3 wood)", true, {{ItemType::Wool, 3}, {ItemType::Wood, 3}}, ItemType::Bed, 1}
+        {ActionType::CraftBed, "Bed (3 wool + 3 planks)", true, {{ItemType::Wool, 3}, {ItemType::Planks, 3}}, ItemType::Bed, 1}
     };
 }
 
@@ -224,11 +225,21 @@ bool canCraftRecipe(const CraftRecipe& recipe, const Inventory& inventory, const
     if (recipe.needsWorkbench && !isNearTile(player, '#'))
         return false;
 
-    if (!canAddItem(inventory, recipe.result))
+    bool canStoreResult = canAddItem(inventory, recipe.result);
+    if (!canStoreResult) {
+        for (const Ingredient& ingredient : recipe.ingredients) {
+            if (ingredient.item != recipe.result && countItem(inventory, ingredient.item) > 0) {
+                canStoreResult = true;
+                break;
+            }
+        }
+    }
+    if (!canStoreResult)
         return false;
 
     for (const Ingredient& ingredient : recipe.ingredients) {
-        if (countItem(inventory, ingredient.item) < ingredient.count)
+        int available = ingredient.item == ItemType::Planks ? countPlanks(inventory) : countItem(inventory, ingredient.item);
+        if (available < ingredient.count)
             return false;
     }
     return true;
@@ -247,8 +258,12 @@ bool craftRecipe(const CraftRecipe& recipe, Inventory& inventory, const Position
     if (!canCraftRecipe(recipe, inventory, player))
         return false;
 
-    for (const Ingredient& ingredient : recipe.ingredients)
-        removeItem(inventory, ingredient.item, ingredient.count);
+    for (const Ingredient& ingredient : recipe.ingredients) {
+        if (ingredient.item == ItemType::Planks)
+            removePlanks(inventory, ingredient.count);
+        else
+            removeItem(inventory, ingredient.item, ingredient.count);
+    }
     addItem(inventory, recipe.result, recipe.resultCount);
     return true;
 }
@@ -314,6 +329,7 @@ bool executeAction(ActionType action, Inventory& inventory, PlayerStats& stats,
             return drinkSelected(inventory, stats);
         case ActionType::Place:
             return placeSlotBlock(player, look, inventory, inventory.cursor);
+        case ActionType::CraftPlanks:
         case ActionType::CraftWorkbench:
         case ActionType::CraftFurnace:
         case ActionType::CraftDoor:

@@ -504,6 +504,22 @@ void drawTile(int y, int x, const Position& position, char tile, long long tick)
             return;
         }
 
+        if (tile == 't') {
+            chtype attrs = atmosphereAttrs(tick, tileAttrs(tile, position, C_TREE, A_DIM));
+            attron(attrs);
+            mvaddch(y, x, 'y');
+            attroff(attrs);
+            return;
+        }
+
+        if (tile == 'P') {
+            chtype attrs = atmosphereAttrs(tick, tileAttrs(tile, position, C_DOOR, A_BOLD));
+            attron(attrs);
+            mvaddch(y, x, 'P');
+            attroff(attrs);
+            return;
+        }
+
         if (tile == 'w') {
             chtype attrs = atmosphereAttrs(tick, tileAttrs(tile, position, C_TREE, A_BOLD));
             attron(attrs);
@@ -812,9 +828,9 @@ void drawWorld(const Position& player, const LookDirection& look,
         attroff(A_REVERSE);
 
     if (useUnicode)
-        mvprintw(height - 1, 0, ". 0 ~ : sand T tree w wheat H fence &&& cow && sheep X spider * item > spear @ you");
+        mvprintw(height - 1, 0, ". 0 ~ : sand T tree y sapling P planks H fence &&& cow && sheep X/P spider @ you");
     else
-        mvprintw(height - 1, 0, ". 0 ~ : sand T tree w wheat H fence &&& cow && sheep X spider * item > spear @ you");
+        mvprintw(height - 1, 0, ". 0 ~ : sand T tree y sapling P planks H fence &&& cow && sheep X/P spider @ you");
     drawChat(chat, height, width);
     drawInventoryOverlay(inventory, player, cows);
     wnoutrefresh(stdscr);

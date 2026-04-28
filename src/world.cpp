@@ -241,7 +241,7 @@ bool updateWheatGrowth(long long tick) {
 
     bool changed = false;
     for (auto& placed : placedBlocks) {
-        if (placed.second != 'w')
+        if (placed.second != 'w' && placed.second != 't')
             continue;
 
         const Position& pos = placed.first;
@@ -250,7 +250,7 @@ bool updateWheatGrowth(long long tick) {
                             static_cast<uint64_t>(tick / wheatGrowTicks) ^
                             worldSeed);
         if (roll % 3 == 0) {
-            placed.second = 'W';
+            placed.second = placed.second == 'w' ? 'W' : 'T';
             blockDamage.erase(pos);
             changed = true;
         }
@@ -272,7 +272,7 @@ bool updateWaterPhysics(const Position& player, long long tick) {
 bool canWalkTo(const Position& next) {
     char tile = tileAt(next.x, next.y);
     return tile != '0' && tile != 'i' && tile != '~' && tile != '#' && tile != 'F' &&
-           tile != 'D' && tile != 'C' && tile != 'f' && tile != 'B' && tile != 'M';
+           tile != 'D' && tile != 'C' && tile != 'f' && tile != 'B' && tile != 'M' && tile != 'P';
 }
 
 int moveDelayFor(const Position& player, const MoveInput& move) {
@@ -283,7 +283,7 @@ int moveDelayFor(const Position& player, const MoveInput& move) {
 
 bool cowCanWalkTo(const Position& next) {
     char tile = tileAt(next.x, next.y);
-    return tile == '.' || tile == ':' || tile == 'T' || tile == 'w' || tile == 'W';
+    return tile == '.' || tile == ':' || tile == 'T' || tile == 't' || tile == 'w' || tile == 'W';
 }
 
 bool tryMove(Position& player, const MoveInput& move) {

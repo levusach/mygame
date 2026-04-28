@@ -1,0 +1,9 @@
+world
+worldpodvoh
+*.exe
+*.o
+dist/
+build/
+release/
+*.sav
+worlds/

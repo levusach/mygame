@@ -1,0 +1,37 @@
+0   None           Empty / no item
+1   Stone          Stone
+2   Wood           Old Planks
+3   RawMeat        Raw Meat
+4   CookedMeat     Cooked Meat
+5   DirtyWater     Dirty Water
+6   BoiledWater    Boiled Water
+7   Milk           Milk
+8   Workbench      Workbench
+9   Furnace        Furnace
+10  Door           Door
+11  Chest          Chest
+12  Spear          Spear
+13  Sand           Sand
+14  Wheat          Wheat
+15  WheatSeeds     Wheat Seeds
+16  Fence          Fence
+17  IronOre        Iron Ore
+18  IronIngot      Iron Ingot
+19  Bucket         Empty / no display name in itemName()
+20  WaterBucket    Empty / no display name in itemName()
+21  WoodPickaxe    Wood Pickaxe
+22  StonePickaxe   Stone Pickaxe
+23  IronPickaxe    Iron Pickaxe
+24  WoodAxe        Wood Axe
+25  StoneAxe       Stone Axe
+26  IronAxe        Iron Axe
+27  WoodShovel     Wood Shovel
+28  StoneShovel    Stone Shovel
+29  IronShovel     Iron Shovel
+30  Bread          Bread
+31  Shears         Shears
+32  Wool           Wool
+33  Bed            Bed
+34  Log            Log
+35  Planks         Planks
+36  Sapling        Sapling

@@ -75,25 +75,6 @@ bool drinkSelected(Inventory& inventory, PlayerStats& stats) {
 
 bool updateSurvival(PlayerStats& stats, long long tick) {
     bool changed = false;
-    if (stats.poisonTicks > 0) {
-        stats.poisonTicks--;
-        if (stats.poisonDamageLeft > 0) {
-            stats.poisonDamageCooldown--;
-            if (stats.poisonDamageCooldown <= 0) {
-                if (stats.hearts > 0)
-                    stats.hearts--;
-                stats.poisonDamageLeft--;
-                stats.poisonDamageCooldown = poisonDamageIntervalTicks;
-                changed = true;
-            }
-        }
-        if (stats.poisonTicks <= 0) {
-            stats.poisonTicks = 0;
-            stats.poisonDamageLeft = 0;
-            stats.poisonDamageCooldown = 0;
-            changed = true;
-        }
-    }
     if (tick > 0 && tick % hungerDrainTicks == 0 && stats.hunger > 0) {
         stats.hunger--;
         changed = true;
@@ -117,13 +98,6 @@ bool handleDeath(Position& player, Inventory& inventory, PlayerStats& stats) {
     if (stats.hearts > 0)
         return false;
 
-    if (hasDeathBag) {
-        auto placed = placedBlocks.find(deathBagPos);
-        if (placed != placedBlocks.end() && placed->second == 'M')
-            placedBlocks.erase(placed);
-        chests.erase(deathBagPos);
-    }
-
     deathBagPos = player;
     hasDeathBag = true;
     placedBlocks[deathBagPos] = 'M';
@@ -131,8 +105,13 @@ bool handleDeath(Position& player, Inventory& inventory, PlayerStats& stats) {
     blockDamage.erase(deathBagPos);
     auto& bag = chests[deathBagPos];
     int bagIndex = 0;
+    while (bagIndex < chestSlots && bag[bagIndex].item != ItemType::None && bag[bagIndex].count > 0)
+        bagIndex++;
     if (inventory.held.item != ItemType::None && inventory.held.count > 0) {
-        bag[bagIndex++] = inventory.held;
+        if (bagIndex < chestSlots)
+            bag[bagIndex++] = inventory.held;
+        else
+            dropSlotNear(deathBagPos, inventory.held);
         inventory.held = {};
     }
     for (Slot& slot : inventory.slots) {
@@ -155,9 +134,6 @@ bool handleDeath(Position& player, Inventory& inventory, PlayerStats& stats) {
     stats.hearts = 10;
     stats.hunger = 14;
     stats.thirst = 14;
-    stats.poisonTicks = 0;
-    stats.poisonDamageLeft = 0;
-    stats.poisonDamageCooldown = 0;
     return true;
 }
 

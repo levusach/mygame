@@ -21,7 +21,6 @@ void initColors() {
     init_pair(C_SHEEP_BLACK, COLOR_BLACK, -1);
     init_pair(C_BED, COLOR_MAGENTA, -1);
     init_pair(C_BAG, COLOR_YELLOW, -1);
-    init_pair(C_POISON, COLOR_MAGENTA, -1);
 }
 
 void enableMouseTracking() {
@@ -78,6 +77,7 @@ void drawRoundedBox(int y, int x, int height, int width) {
 }
 
 void drawTopHud(const Inventory& inventory, const PlayerStats& stats, long long tick) {
+    (void)stats;
     int width = 0;
     width = getmaxx(stdscr);
 
@@ -95,10 +95,7 @@ void drawTopHud(const Inventory& inventory, const PlayerStats& stats, long long 
         mvprintw(y + 2, x + 2, "Amount: %d", selectedItemCount(inventory));
     else
         mvprintw(y + 2, x + 2, "Amount: -");
-    if (stats.poisonTicks > 0)
-        mvprintw(y + 3, x + 2, "%s  Poison %ds", dayPhase(tick), (stats.poisonTicks + tickRate - 1) / tickRate);
-    else
-        mvprintw(y + 3, x + 2, "%s", dayPhase(tick));
+    mvprintw(y + 3, x + 2, "%s", dayPhase(tick));
 }
 
 void drawStatusBar(int y, int x, const char* label, int value, int maxValue, int barWidth) {
@@ -583,18 +580,6 @@ void drawSpider(int y, int x) {
         attroff(COLOR_PAIR(C_COW_BLACK) | A_BOLD);
 }
 
-void drawSpider(int y, int x, bool poisonous) {
-    if (!poisonous) {
-        drawSpider(y, x);
-        return;
-    }
-    if (has_colors())
-        attron(COLOR_PAIR(C_POISON) | A_BOLD);
-    mvaddch(y, x, 'P');
-    if (has_colors())
-        attroff(COLOR_PAIR(C_POISON) | A_BOLD);
-}
-
 void drawSheep(int y, int x, bool sheared) {
     if (has_colors())
         attron(COLOR_PAIR(C_SHEEP_BLACK) | A_BOLD);
@@ -671,7 +656,9 @@ std::vector<std::string> wrapUtf8Line(const std::string& text, int maxColumns) {
 }
 
 void drawChat(const ChatState& chat, int height, int width) {
-    int y = height - 8;
+    int bottomLimit = height - bottomRows - 1;
+    int maxLines = 4;
+    int y = bottomLimit - maxLines + 1;
     if (y < 1)
         y = 1;
 
@@ -681,7 +668,6 @@ void drawChat(const ChatState& chat, int height, int width) {
         wrapped.insert(wrapped.end(), lines.begin(), lines.end());
     }
 
-    int maxLines = 4;
     int start = static_cast<int>(wrapped.size()) - maxLines;
     if (start < 0)
         start = 0;
@@ -707,8 +693,9 @@ void drawChat(const ChatState& chat, int height, int width) {
         attron(COLOR_PAIR(C_STATUS) | A_BOLD);
     else
         attron(A_REVERSE);
-    mvhline(height - 3, 0, ' ', width);
-    mvprintw(height - 3, 1, "%s", input.c_str());
+    int inputY = bottomLimit;
+    mvhline(inputY, 0, ' ', width);
+    mvprintw(inputY, 1, "%s", input.c_str());
     if (has_colors())
         attroff(COLOR_PAIR(C_STATUS) | A_BOLD);
     else
@@ -719,7 +706,7 @@ void drawWorld(const Position& player, const LookDirection& look,
                const Inventory& inventory, const std::vector<Cow>& cows,
                const std::vector<Spider>& spiders, const std::vector<Sheep>& sheep,
                const PlayerStats& stats, const ChatState& chat,
-               const VisualState& visual, long long tick) {
+               const VisualState& visual, const NetworkSession& network, long long tick) {
     erase();
 
     int height = 0;
@@ -781,7 +768,7 @@ void drawWorld(const Position& player, const LookDirection& look,
         int sy = visualScreenCoord(spider.previousPos.y, spider.pos.y, player.y, centerY,
                                    spider.moveStartedTick, tick, spiderMoveTicks);
         if (sx >= 0 && sx < width && sy >= 0 && sy < worldHeight)
-            drawSpider(sy, sx, spider.poisonous);
+            drawSpider(sy, sx);
     }
 
     for (const Sheep& oneSheep : sheep) {
@@ -791,6 +778,22 @@ void drawWorld(const Position& player, const LookDirection& look,
                                    oneSheep.moveStartedTick, tick, sheepMoveTicks);
         if (sx > 0 && sx < width && sy >= 0 && sy < worldHeight)
             drawSheep(sy, sx, oneSheep.sheared);
+    }
+
+    for (const NetworkPlayer& remote : network.players) {
+        int sx = static_cast<int>(remote.pos.x - player.x + centerX);
+        int sy = static_cast<int>(remote.pos.y - player.y + centerY);
+        if (sx >= 0 && sx < width && sy >= 0 && sy < worldHeight) {
+            if (has_colors())
+                attron(COLOR_PAIR(C_PLAYER) | A_BOLD);
+            mvaddch(sy, sx, '@');
+            int arrowY = sy + remote.look.dy;
+            int arrowX = sx + remote.look.dx;
+            if (arrowY >= 0 && arrowY < worldHeight && arrowX >= 0 && arrowX < width)
+                mvaddch(arrowY, arrowX, lookGlyph(remote.look));
+            if (has_colors())
+                attroff(COLOR_PAIR(C_PLAYER) | A_BOLD);
+        }
     }
 
     if (has_colors())
@@ -820,8 +823,8 @@ void drawWorld(const Position& player, const LookDirection& look,
     else
         attron(A_REVERSE);
     mvhline(height - 2, 0, ' ', width);
-    mvprintw(height - 2, 0, "LMB hit/spear  RMB place  E item/menu  I inventory  T chat  q quit pos:%lld,%lld",
-             player.x, player.y);
+    mvprintw(height - 2, 0, "LMB hit/spear  RMB place  E item/menu  I inventory  T chat  q quit %s:%zu pos:%lld,%lld",
+             networkModeName(network).c_str(), network.players.size(), player.x, player.y);
     if (has_colors())
         attroff(COLOR_PAIR(C_STATUS));
     else

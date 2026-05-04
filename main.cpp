@@ -10,5 +10,6 @@
 #include "src/actions.cpp"
 #include "src/admin.cpp"
 #include "src/save.cpp"
+#include "src/network.cpp"
 #include "src/render.cpp"
 #include "src/main_loop.cpp"

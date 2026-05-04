@@ -44,8 +44,6 @@ constexpr int cowMoveTicks = 96;
 constexpr int spiderScanRadius = 30;
 constexpr int spiderMoveTicks = 48;
 constexpr int spiderDamageTicks = tickRate;
-constexpr int poisonDurationTicks = tickRate * 4;
-constexpr int poisonDamageIntervalTicks = tickRate;
 constexpr int sheepScanRadius = 28;
 constexpr int sheepMoveTicks = 100;
 constexpr int dayCycleTicks = tickRate * 240;
@@ -108,8 +106,7 @@ enum ColorPair {
     C_COW_BLACK,
     C_SHEEP_BLACK,
     C_BED,
-    C_BAG,
-    C_POISON
+    C_BAG
 };
 
 struct Position {
@@ -274,7 +271,6 @@ struct Cow {
 struct Spider {
     Position pos;
     Position spawn;
-    bool poisonous = false;
     Position previousPos;
     long long moveStartedTick = 0;
 };
@@ -296,9 +292,6 @@ struct PlayerStats {
     int hearts = 10;
     int hunger = 20;
     int thirst = 20;
-    int poisonTicks = 0;
-    int poisonDamageLeft = 0;
-    int poisonDamageCooldown = 0;
 };
 
 struct ChatState {
@@ -306,6 +299,36 @@ struct ChatState {
     std::string input;
     std::string pendingLine;
     std::vector<std::string> messages;
+};
+
+enum class NetworkMode {
+    Offline,
+    Host,
+    Client
+};
+
+struct NetworkPlayer {
+    uint32_t id = 0;
+    std::string name;
+    Position pos;
+    LookDirection look;
+    long long lastSeenTick = 0;
+};
+
+struct NetworkSession {
+    NetworkMode mode = NetworkMode::Offline;
+    bool ready = false;
+    int socketFd = -1;
+    uint32_t localId = 0;
+    uint16_t port = 41731;
+    std::string name = "Player";
+    std::string connectHost;
+    bool announcedJoin = false;
+    long long lastSendTick = -tickRate;
+    std::vector<NetworkPlayer> players;
+#if defined(_WIN32)
+    bool winsockStarted = false;
+#endif
 };
 
 enum class ActionType {

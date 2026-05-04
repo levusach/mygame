@@ -1,7 +1,27 @@
 int main(int argc, char** argv) {
+    NetworkSession network;
     for (int i = 1; i < argc; ++i) {
-        if (std::string(argv[i]) == "--unicode")
+        std::string arg = argv[i];
+        if (arg == "--unicode") {
             useUnicode = true;
+        } else if (arg == "--host") {
+            network.mode = NetworkMode::Host;
+            if (i + 1 < argc && argv[i + 1][0] >= '0' && argv[i + 1][0] <= '9') {
+                int port = std::atoi(argv[++i]);
+                if (port > 0 && port <= 65535)
+                    network.port = static_cast<uint16_t>(port);
+            }
+        } else if (arg == "--join" && i + 1 < argc) {
+            network.mode = NetworkMode::Client;
+            network.port = defaultNetworkPort;
+            parseHostPort(argv[++i], network.connectHost, network.port);
+        } else if (arg == "--port" && i + 1 < argc) {
+            int port = std::atoi(argv[++i]);
+            if (port > 0 && port <= 65535)
+                network.port = static_cast<uint16_t>(port);
+        } else if (arg == "--name" && i + 1 < argc) {
+            network.name = argv[++i];
+        }
     }
 
     setlocale(LC_ALL, "");
@@ -33,42 +53,54 @@ int main(int argc, char** argv) {
     auto nextTick = Clock::now();
     const auto tickDuration = std::chrono::microseconds(1000000 / tickRate);
     bool dirty = true;
+    bool warnedLowHearts = false;
+    bool warnedNoFood = false;
+    bool warnedNoWater = false;
 
-    std::vector<std::string> saves = listSaveFiles();
-    int menuChoice = showMainMenu(!saves.empty());
-    if (menuChoice == 0) {
-        endwin();
-        return 0;
-    }
-
-    if (menuChoice == 2) {
-        int saveChoice = showLoadMenu(saves);
-        if (saveChoice < 0 || saveChoice >= static_cast<int>(saves.size())) {
+    if (network.mode == NetworkMode::Client) {
+        clearWorldState();
+        setupWorldGeneration(0);
+        currentSavePath = makeNewSavePath();
+        addChatMessage(chat, "Waiting for LAN host world seed...");
+    } else {
+        std::vector<std::string> saves = listSaveFiles();
+        int menuChoice = showMainMenu(!saves.empty());
+        if (menuChoice == 0) {
             endwin();
             return 0;
         }
-        currentSavePath = saves[saveChoice];
-    } else if (menuChoice == 1) {
-        currentSavePath = makeNewSavePath();
-        setupWorldGeneration(makeRandomWorldSeed());
-        clearWorldState();
+
+        if (menuChoice == 2) {
+            int saveChoice = showLoadMenu(saves);
+            if (saveChoice < 0 || saveChoice >= static_cast<int>(saves.size())) {
+                endwin();
+                return 0;
+            }
+            currentSavePath = saves[saveChoice];
+        } else if (menuChoice == 1) {
+            currentSavePath = makeNewSavePath();
+            setupWorldGeneration(makeRandomWorldSeed());
+            clearWorldState();
+        }
+
+        if (menuChoice == 2 && !loadGame(player, look, inventory, stats, cows, spiders, sheep, tick, lastMoveTick, lastAttackTick)) {
+            clearWorldState();
+            currentSavePath = makeNewSavePath();
+            setupWorldGeneration(makeRandomWorldSeed());
+            player = {};
+            look = {};
+            inventory = {};
+            stats = {};
+            cows.clear();
+            sheep.clear();
+            spiders.clear();
+            tick = 0;
+            lastMoveTick = -ticksPerMove;
+            lastAttackTick = -attackCooldownTicks;
+        }
     }
 
-    if (menuChoice == 2 && !loadGame(player, look, inventory, stats, cows, spiders, sheep, tick, lastMoveTick, lastAttackTick)) {
-        clearWorldState();
-        currentSavePath = makeNewSavePath();
-        setupWorldGeneration(makeRandomWorldSeed());
-        player = {};
-        look = {};
-        inventory = {};
-        stats = {};
-        cows.clear();
-        sheep.clear();
-        spiders.clear();
-        tick = 0;
-        lastMoveTick = -ticksPerMove;
-        lastAttackTick = -attackCooldownTicks;
-    }
+    startNetwork(network, chat);
 
     visual.playerPrevious = player;
     visual.playerMoveStartedTick = tick;
@@ -76,9 +108,17 @@ int main(int argc, char** argv) {
     enableMouseTracking();
 
     while (true) {
+        pollNetwork(network, chat, player, look, tick);
         readHeldInput(input, mouse, chat);
         if (!chat.pendingLine.empty()) {
-            processChatLine(chat, player, inventory);
+            std::string line = chat.pendingLine;
+            if (!line.empty() && line[0] != '/' && network.mode != NetworkMode::Offline) {
+                chat.pendingLine.clear();
+                addChatMessage(chat, "<" + cleanNetworkName(network.name) + "> " + line);
+                sendNetworkChat(network, line);
+            } else {
+                processChatLine(chat, player, inventory);
+            }
             dirty = true;
         }
         if (spawnCowsAroundPlayer(cows, player))
@@ -103,7 +143,34 @@ int main(int argc, char** argv) {
             dirty = true;
         if (updateSurvival(stats, tick))
             dirty = true;
+        if (stats.hearts <= 3 && !warnedLowHearts) {
+            addChatMessage(chat, "Warning: low HP.");
+            warnedLowHearts = true;
+            dirty = true;
+        } else if (stats.hearts > 3) {
+            warnedLowHearts = false;
+        }
+        if (stats.hunger == 0 && !warnedNoFood) {
+            addChatMessage(chat, "Warning: starving. Eat something.");
+            warnedNoFood = true;
+            dirty = true;
+        } else if (stats.hunger > 0) {
+            warnedNoFood = false;
+        }
+        if (stats.thirst == 0 && !warnedNoWater) {
+            addChatMessage(chat, "Warning: dehydrated. Drink boiled water or milk.");
+            warnedNoWater = true;
+            dirty = true;
+        } else if (stats.thirst > 0) {
+            warnedNoWater = false;
+        }
         if (handleDeath(player, inventory, stats)) {
+            addChatMessage(chat, "You died. Your inventory is in death bag M at " +
+                                std::to_string(deathBagPos.x) + "," +
+                                std::to_string(deathBagPos.y) + ". Press E near it.");
+            warnedLowHearts = false;
+            warnedNoFood = false;
+            warnedNoWater = false;
             visual.playerPrevious = player;
             visual.playerMoveStartedTick = tick;
             dirty = true;
@@ -262,9 +329,9 @@ int main(int argc, char** argv) {
                     if (!brokeBlock)
                         brokeBlock = attackSheepTowardTarget(player, target, sheep, inventory);
                     if (!brokeBlock)
-                        brokeBlock = attackBlockAt(player, target, tool);
+                        brokeBlock = attackBlockAt(player, target, tool, &inventory);
                     if (!brokeBlock)
-                        brokeBlock = attackTowardTarget(player, target, tool);
+                        brokeBlock = attackTowardTarget(player, target, tool, &inventory);
                 }
 
                 if (!brokeBlock)
@@ -274,7 +341,7 @@ int main(int argc, char** argv) {
                 if (!brokeBlock)
                     brokeBlock = attackSheepInLookDirection(player, look, sheep, inventory);
                 if (!brokeBlock)
-                    brokeBlock = attackInLookDirection(player, look, tool);
+                    brokeBlock = attackInLookDirection(player, look, tool, &inventory);
 
                 mouse.attackQueued = false;
                 input.attackQueued = false;
@@ -311,7 +378,7 @@ int main(int argc, char** argv) {
         }
 
         if (dirty && tick % renderEveryTicks == 0) {
-            drawWorld(player, look, inventory, cows, spiders, sheep, stats, chat, visual, tick);
+            drawWorld(player, look, inventory, cows, spiders, sheep, stats, chat, visual, network, tick);
             dirty = false;
         }
 
@@ -323,7 +390,9 @@ int main(int argc, char** argv) {
             nextTick = Clock::now();
     }
 
-    saveGame(player, look, inventory, stats, cows, spiders, sheep, tick, lastMoveTick, lastAttackTick);
+    if (network.mode != NetworkMode::Client)
+        saveGame(player, look, inventory, stats, cows, spiders, sheep, tick, lastMoveTick, lastAttackTick);
+    closeNetworkSocket(network);
     disableMouseTracking();
     endwin();
     return 0;

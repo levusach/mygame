@@ -466,6 +466,17 @@ void dropSlotNear(const Position& position, const Slot& slot) {
     }
 }
 
+void addOrDropNear(Inventory& inventory, const Position& position, const Slot& slot) {
+    if (slot.item == ItemType::None || slot.count <= 0)
+        return;
+
+    int before = countItem(inventory, slot.item);
+    addItem(inventory, slot.item, slot.count);
+    int added = countItem(inventory, slot.item) - before;
+    if (added < slot.count)
+        dropSlotNear(position, {slot.item, slot.count - added});
+}
+
 bool isPickaxe(ItemType item) {
     return item == ItemType::WoodPickaxe || item == ItemType::StonePickaxe || item == ItemType::IronPickaxe;
 }
@@ -511,7 +522,7 @@ bool drinkSelectedItem(Inventory& inventory) {
     return true;
 }
 
-bool breakBlockAt(const Position& target, ItemType tool = ItemType::None) {
+bool breakBlockAt(const Position& target, ItemType tool = ItemType::None, Inventory* inventory = nullptr) {
     char tile = tileAt(target.x, target.y);
     if (!isBreakable(tile))
         return false;
@@ -526,8 +537,12 @@ bool breakBlockAt(const Position& target, ItemType tool = ItemType::None) {
     if (tile == 'C' || tile == 'M') {
         auto chest = chests.find(target);
         if (chest != chests.end()) {
-            for (const Slot& slot : chest->second)
-                dropSlotNear(target, slot);
+            for (const Slot& slot : chest->second) {
+                if (tile == 'M' && inventory != nullptr)
+                    addOrDropNear(*inventory, target, slot);
+                else
+                    dropSlotNear(target, slot);
+            }
             chests.erase(chest);
         }
     }
@@ -553,16 +568,16 @@ bool breakBlockAt(const Position& target, ItemType tool = ItemType::None) {
     return false;
 }
 
-bool attackBlockAt(const Position& player, const Position& target, ItemType tool = ItemType::None) {
+bool attackBlockAt(const Position& player, const Position& target, ItemType tool = ItemType::None, Inventory* inventory = nullptr) {
     long long dx = target.x - player.x;
     long long dy = target.y - player.y;
     if (dx * dx + dy * dy > attackRadius * attackRadius)
         return false;
 
-    return breakBlockAt(target, tool);
+    return breakBlockAt(target, tool, inventory);
 }
 
-bool attackInLookDirection(const Position& player, const LookDirection& look, ItemType tool = ItemType::None) {
+bool attackInLookDirection(const Position& player, const LookDirection& look, ItemType tool = ItemType::None, Inventory* inventory = nullptr) {
     if (look.dx == 0 && look.dy == 0)
         return false;
 
@@ -572,14 +587,14 @@ bool attackInLookDirection(const Position& player, const LookDirection& look, It
             player.y + look.dy * distance
         };
 
-        if (breakBlockAt(target, tool))
+        if (breakBlockAt(target, tool, inventory))
             return true;
     }
 
     return false;
 }
 
-bool attackTowardTarget(const Position& player, const Position& target, ItemType tool = ItemType::None) {
+bool attackTowardTarget(const Position& player, const Position& target, ItemType tool = ItemType::None, Inventory* inventory = nullptr) {
     long long dx = target.x - player.x;
     long long dy = target.y - player.y;
     if (dx == 0 && dy == 0)
@@ -602,7 +617,7 @@ bool attackTowardTarget(const Position& player, const Position& target, ItemType
             player.y + static_cast<long long>(std::llround(static_cast<double>(dy) * step / steps))
         };
 
-        if (breakBlockAt(current, tool))
+        if (breakBlockAt(current, tool, inventory))
             return true;
     }
 

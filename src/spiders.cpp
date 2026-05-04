@@ -10,13 +10,6 @@ bool shouldSpiderSpawnAt(const Position& pos) {
     return noise % 520 == 0;
 }
 
-bool shouldPoisonSpiderSpawnAt(const Position& pos) {
-    uint64_t noise = mix(static_cast<uint64_t>(pos.x) * 0xbf58476d1ce4e5b9ULL ^
-                         static_cast<uint64_t>(pos.y) * 0x51ed2705ULL ^
-                         (worldSeed + 0x9e3779b97f4a7c15ULL));
-    return noise % 5 == 0;
-}
-
 bool spiderExistsAt(const std::vector<Spider>& spiders, const Position& pos) {
     for (const Spider& spider : spiders) {
         if (spider.pos == pos)
@@ -60,8 +53,7 @@ bool spawnNightSpidersAroundPlayer(std::vector<Spider>& spiders, const Position&
 
             seenSpiderSpawns.insert(spawn);
             if (shouldSpiderSpawnAt(spawn)) {
-                bool poisonous = shouldPoisonSpiderSpawnAt(spawn);
-                spiders.push_back({spawn, spawn, poisonous, spawn, 0});
+                spiders.push_back({spawn, spawn, spawn, 0});
                 spawned = true;
             }
         }
@@ -78,11 +70,6 @@ bool updateSpiders(std::vector<Spider>& spiders, const Position& player, PlayerS
 
         if (dist2 <= 2 && tick > 0 && tick % spiderDamageTicks == 0 && stats.hearts > 0) {
             stats.hearts--;
-            if (spider.poisonous) {
-                stats.poisonTicks = poisonDurationTicks;
-                stats.poisonDamageLeft = 3;
-                stats.poisonDamageCooldown = poisonDamageIntervalTicks;
-            }
             changed = true;
         }
 

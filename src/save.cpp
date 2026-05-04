@@ -104,8 +104,7 @@ bool saveGame(const Position& player, const LookDirection& look, const Inventory
     out << "LOOK " << look.dx << ' ' << look.dy << '\n';
     out << "SEED " << worldSeed << '\n';
     out << "TICK " << tick << ' ' << lastMoveTick << ' ' << lastAttackTick << '\n';
-    out << "STATS " << stats.hearts << ' ' << stats.hunger << ' ' << stats.thirst << ' '
-        << stats.poisonTicks << ' ' << stats.poisonDamageLeft << ' ' << stats.poisonDamageCooldown << '\n';
+    out << "STATS " << stats.hearts << ' ' << stats.hunger << ' ' << stats.thirst << '\n';
     out << "RESPAWN " << hasRespawnPoint << ' ' << respawnPoint.x << ' ' << respawnPoint.y << '\n';
     out << "DEATH_BAG " << hasDeathBag << ' ' << deathBagPos.x << ' ' << deathBagPos.y << '\n';
     out << "INV " << inventory.selectedSlot << ' ' << inventory.cursor << '\n';
@@ -169,7 +168,7 @@ bool saveGame(const Position& player, const LookDirection& look, const Inventory
 
     out << "SPIDERS " << spiders.size() << '\n';
     for (const Spider& spider : spiders)
-        out << spider.pos.x << ' ' << spider.pos.y << ' ' << spider.spawn.x << ' ' << spider.spawn.y << ' ' << spider.poisonous << '\n';
+        out << spider.pos.x << ' ' << spider.pos.y << ' ' << spider.spawn.x << ' ' << spider.spawn.y << '\n';
 
     out << "SEEN_SHEEP " << seenSheepSpawns.size() << '\n';
     for (const Position& pos : seenSheepSpawns)
@@ -228,11 +227,6 @@ bool loadGame(Position& player, LookDirection& look, Inventory& inventory, Playe
     std::getline(in, statsLine);
     std::istringstream statsIn(statsLine);
     statsIn >> stats.hearts >> stats.hunger >> stats.thirst;
-    if (!(statsIn >> stats.poisonTicks >> stats.poisonDamageLeft >> stats.poisonDamageCooldown)) {
-        stats.poisonTicks = 0;
-        stats.poisonDamageLeft = 0;
-        stats.poisonDamageCooldown = 0;
-    }
     in >> tag;
     if (tag == "RESPAWN") {
         in >> hasRespawnPoint >> respawnPoint.x >> respawnPoint.y;
@@ -390,8 +384,6 @@ bool loadGame(Position& player, LookDirection& look, Inventory& inventory, Playe
             std::getline(in, line);
             std::istringstream spiderIn(line);
             spiderIn >> spider.pos.x >> spider.pos.y >> spider.spawn.x >> spider.spawn.y;
-            if (!(spiderIn >> spider.poisonous))
-                spider.poisonous = false;
             spider.previousPos = spider.pos;
             spider.moveStartedTick = tick;
             spiders.push_back(spider);
